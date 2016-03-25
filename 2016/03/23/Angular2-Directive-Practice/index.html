@@ -1,0 +1,185 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Angular2 Directive Practice | euphoria</title>
+  <meta name="author" content="Peng Yan">
+  
+  <meta name="description" content="If we need make some directives like widgets — meaning drag and use, how to we want to design it, let’s practice from ground.Right now we have12&amp;lt;in">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Angular2 Directive Practice"/>
+  <meta property="og:site_name" content="euphoria"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="euphoria" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">euphoria</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2016-03-24T03:11:17.000Z"><a href="/2016/03/23/Angular2-Directive-Practice/">2016-03-23</a></time>
+      
+      
+  
+    <h1 class="title">Angular2 Directive Practice</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>If we need make some directives like widgets — meaning drag and use, how to we want to design it, let’s practice from ground.<br>Right now we have<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">input</span> <span class="attr">id</span>=<span class="string">"action"</span> <span class="attr">type</span>=<span class="string">"checkbox"</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">label</span> <span class="attr">for</span>=<span class="string">"action"</span>&gt;</span>Action will trigger<span class="tag">&lt;/<span class="name">label</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<h3 id="Case-1"><a href="#Case-1" class="headerlink" title="Case 1"></a>Case 1</h3><p>When I check the checkbox, I want to fire event which will call backend service.<br>You may want to code like this:<br><figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">@Directive(&#123;</span><br><span class="line">  selector: <span class="string">'input[action]'</span>,</span><br><span class="line">  events: [<span class="string">'callBackend'</span>],</span><br><span class="line">  host: &#123;</span><br><span class="line">    <span class="string">'(change)'</span>: <span class="string">'emitOut()'</span></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;)</span><br><span class="line"><span class="keyword">export</span> <span class="keyword">class</span> CheckboxTriggerActionDirective &#123;</span><br><span class="line">  callBackend: EventEmitter&lt;<span class="built_in">any</span>&gt; = <span class="keyword">new</span> EventEmitter();</span><br><span class="line"></span><br><span class="line">  emitOut() &#123;</span><br><span class="line">    <span class="keyword">this</span>.callBackend.emit(<span class="string">'checkbox emit data out side'</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>And you put directive like this:<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">                                     ||         ||</span><br><span class="line">                                     \/         \/</span><br><span class="line"><span class="tag">&lt;<span class="name">input</span> <span class="attr">id</span>=<span class="string">"action"</span> <span class="attr">type</span>=<span class="string">"checkbox"</span> <span class="attr">action</span> (<span class="attr">callBackend</span>)=<span class="string">"callbackend($event)"</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">label</span> <span class="attr">for</span>=<span class="string">"action"</span>&gt;</span>Action will trigger<span class="tag">&lt;/<span class="name">label</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>Let’s talk basic angular2 important knowledge real quick:</p>
+<ol>
+<li>Angular2 have two main decorators (@Directive and @Component), or you can understand as Annotation if you are Java Guy, which put the metadata(additional informative data) above class definition, to let Angular2 compiler to know when and where to apply the functionality you are defined.</li>
+<li>You can briefly take @Component = @Directive + Template. </li>
+<li>In Angular2 Data flow is one way, always from Component class instance member(Ex. callBackend is instance member of class CheckboxTriggerActionDirective) to template.</li>
+</ol>
+<hr>
+<p>In our example,<br>[selector] will ask angular to parse template to find tag input which have attribute “action”.<br>[events] which tell angular this directive will have customize-event which in our application somewhere it can be listen to or subscribe to.<br>[host] means the DOM element which hosts our directive, in our case is input, it means when we hear some change events happened from host element, our directive will call function emitOut().<br>Remember (xxx) means output from DOM element, it can be built-in event or customize function call. In emitOut() our customized event will shout out, our application can listen to the value or message it sends(this message can be object or internal usefully information which can let whole world know you LOL), and do some action(EX. call backend service).</p>
+<hr>
+<h3 id="Data-flow"><a href="#Data-flow" class="headerlink" title="Data flow:"></a>Data flow:</h3><p>checkbox status changed ——&gt; call emitOut() ——&gt; callBackend emit message ——&gt; observer or listener will do operations</p>
+<p>Next we will make our checkbox more generic and reusable.</p>
+<hr>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<div id="disqus_thread"></div>
+<script>
+
+    /**
+     *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+     *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+     */
+    /*
+     var disqus_config = function () {
+     this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+     this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+     };
+     */
+    (function() {  // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+
+        s.src = '//ryanfakir.disqus.com/embed.js';
+
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="Suche">
+    <input type="hidden" name="q" value="site:ryanfakir.github.io">
+  </form>
+</div>
+
+  
+
+  
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2016 Peng Yan
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+<script type="text/javascript">
+var disqus_shortname = 'ryanfakir';
+
+(function(){
+  var dsq = document.createElement('script');
+  dsq.type = 'text/javascript';
+  dsq.async = true;
+  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+}());
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
