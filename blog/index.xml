@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Blog on Peng Yan</title>
+    <link>https://ryanfakir.github.io/blog/index.xml</link>
+    <description>Recent content in Blog on Peng Yan</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language>
+    <lastBuildDate>Sun, 18 Dec 2016 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://ryanfakir.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Angular Checkbox</title>
+      <link>https://ryanfakir.github.io/angular-checkbox/</link>
+      <pubDate>Sun, 18 Dec 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://ryanfakir.github.io/angular-checkbox/</guid>
+      <description>
+
+&lt;p&gt;If we need make some directives like widgets — meaning drag and use, how to we want to design it, let’s practice from ground.&lt;br /&gt;
+Right now we have&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-html&#34;&gt;&amp;lt;input id=&amp;quot;action&amp;quot; type=&amp;quot;checkbox&amp;quot;&amp;gt;  
+&amp;lt;label for=&amp;quot;action&amp;quot;&amp;gt;Action will triggerlabel&amp;gt;  
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;case-1&#34;&gt;Case 1&lt;/h3&gt;
+
+&lt;p&gt;When I check the checkbox, I want to fire event which will call backend service.&lt;br /&gt;
+You may want to code like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-golang&#34;&gt;@Directive({
+  selector: &#39;input[action]&#39;,
+  events: [&#39;callBackend&#39;],
+  host: {
+    &#39;(change)&#39;: &#39;emitOut()&#39;
+  }
+
+})
+export class CheckboxTriggerActionDirective {
+  callBackend: EventEmitter&amp;lt;any&amp;gt; = new EventEmitter();
+
+  emitOut() {
+    this.callBackend.emit(&#39;checkbox emit data out side&#39;);
+  }
+} 
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;And you put directive like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-javascript&#34;&gt; ||         ||  
+ \/         \/  
+&amp;lt;input id=&amp;quot;action&amp;quot; type=&amp;quot;checkbox&amp;quot; action (callBackend)=&amp;quot;callbackend($event)&amp;quot;&amp;gt;  
+&amp;lt;label for=&amp;quot;action&amp;quot;&amp;gt;Action will triggerlabel&amp;gt;  
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Let’s talk basic angular2 important knowledge real quick:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Angular2 have two main decorators (@Directive and @Component), or you can understand as Annotation if you are Java Guy, which put the metadata(additional informative data) above class definition, to let Angular2 compiler to know when and where to apply the functionality you are defined.&lt;br /&gt;&lt;/li&gt;
+&lt;li&gt;You can briefly take @Component = @Directive + Template.&lt;br /&gt;&lt;/li&gt;
+&lt;li&gt;In Angular2 Data flow is one way, always from Component class instance member(Ex. callBackend is instance member of class CheckboxTriggerActionDirective) to template.&lt;br /&gt;
+&lt;br /&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;In our example,&lt;br /&gt;
+[selector] will ask angular to parse template to find tag input which have attribute “action”.&lt;br /&gt;
+[events] which tell angular this directive will have customize-event which in our application somewhere it can be listen to or subscribe to.&lt;br /&gt;
+[host] means the DOM element which hosts our directive, in our case is input, it means when we hear some change events happened from host element, our directive will call function emitOut().&lt;br /&gt;
+Remember (xxx) means output from DOM element, it can be built-in event or customize function call. In emitOut() our customized event will shout out, our application can listen to the value or message it sends(this message can be object or internal usefully information which can let whole world know you LOL), and do some action(EX. call backend service).&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h3 id=&#34;data-flow&#34;&gt;Data flow:&lt;/h3&gt;
+
+&lt;p&gt;checkbox status changed ——&amp;gt; call emitOut() ——&amp;gt; callBackend emit message ——&amp;gt; observer or listener will do operations&lt;/p&gt;
+
+&lt;p&gt;Next we will make our checkbox more generic and reusable.&lt;/p&gt;
+
+&lt;hr /&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
