@@ -6,20 +6,8 @@
     <description>Recent content on Peng Yan</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-US</language>
-    <lastBuildDate>Sun, 18 Dec 2016 18:40:43 -0500</lastBuildDate>
+    <lastBuildDate>Sun, 18 Dec 2016 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://ryanfakir.github.io/index.xml" rel="self" type="application/rss+xml" />
-    
-    <item>
-      <title>Go Juerney</title>
-      <link>https://ryanfakir.github.io/go-juerney/</link>
-      <pubDate>Sun, 18 Dec 2016 18:40:43 -0500</pubDate>
-      
-      <guid>https://ryanfakir.github.io/go-juerney/</guid>
-      <description>
-
-&lt;h4 id=&#34;task-create-widge-for-golang&#34;&gt;Task: Create widge for golang&lt;/h4&gt;
-</description>
-    </item>
     
     <item>
       <title>Angular Checkbox</title>
