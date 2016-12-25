@@ -2,7 +2,6 @@
 <html lang="en-US">
 
 <head>
-	<meta name="generator" content="Hugo 0.18-DEV" />
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="chrome=1">
 <meta name="HandheldFriendly" content="True">
@@ -15,10 +14,10 @@
 <title>
 
 
-     Peng Yan 
+     Hand Dirty with Golang 
 
 </title>
-<link rel="canonical" href="https://ryanfakir.github.io/">
+<link rel="canonical" href="https://ryanfakir.github.io/hand-dirty-with-golang/">
 
 
 <script type="text/javascript">
@@ -49,8 +48,6 @@
 >
 
 
-
-  <link href="https://ryanfakir.github.io/index.xml" rel="alternate" type="application/rss+xml" title="Peng Yan" />
 
 
 
@@ -106,27 +103,53 @@
     </div>
 </section>
 
-<section class="main">
+
+<section class="main post non-narrow zero-top-spacing">
     <div class="container">
         <div class="content">
-            <div class="page-heading">Blog</div>
-            <ul>
-            
-                <li class="post-item">
-    <span class="meta">Dec 24, 2016</span>
-    <a href="https://ryanfakir.github.io/hand-dirty-with-golang/"><span>Hand Dirty with Golang</span></a>
-</li>
+            <div class="front-matter">
+                <div class="title-container">
+                    <div class="page-heading">
 
-            
-                <li class="post-item">
-    <span class="meta">Dec 18, 2016</span>
-    <a href="https://ryanfakir.github.io/angular-checkbox/"><span>Angular Checkbox</span></a>
-</li>
+    Hand Dirty with Golang
 
-            
-            </ul>
-            
-    
+</div>
+
+                    <div class="initials"><a href="https://ryanfakir.github.io/">ad</a></div>
+                </div>
+                <div class="meta">
+                    <div class="date" title="Sat Dec 24 2016 18:37:06 EST">Dec 24, 2016</div>
+                    <div class="reading-time"><div class="middot"></div>1 minute read</div>
+                </div>
+            </div>
+            <div class="markdown">
+                
+
+<h4 id="task-web-crawler-with-go">Task: web crawler with go</h4>
+
+<pre><code class="language-Golang">func main() {
+	for _, v := range os.Args[1:] {
+		resp, err := http.Get(v)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, &quot;err with: %v\n&quot;, err)
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+		_, err = io.Copy(os.Stdout, resp.Body)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, &quot;can't copy from body: %v\n&quot;, err)
+		}
+	}
+}
+</code></pre>
+
+                <br>
+                <p><a href="https://ryanfakir.github.io/blog/">Back to posts</a></p>
+            </div>
+            <br>
+            <div class="disqus">
+                
+            </div>
         </div>
     </div>
 </section>
@@ -159,5 +182,4 @@ try {
 
 </body>
 </html>
-
 

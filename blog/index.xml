@@ -6,8 +6,36 @@
     <description>Recent content in Blog on Peng Yan</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-US</language>
-    <lastBuildDate>Sun, 18 Dec 2016 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 24 Dec 2016 18:37:06 -0500</lastBuildDate>
     <atom:link href="https://ryanfakir.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Hand Dirty with Golang</title>
+      <link>https://ryanfakir.github.io/hand-dirty-with-golang/</link>
+      <pubDate>Sat, 24 Dec 2016 18:37:06 -0500</pubDate>
+      
+      <guid>https://ryanfakir.github.io/hand-dirty-with-golang/</guid>
+      <description>
+
+&lt;h4 id=&#34;task-web-crawler-with-go&#34;&gt;Task: web crawler with go&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;func main() {
+	for _, v := range os.Args[1:] {
+		resp, err := http.Get(v)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, &amp;quot;err with: %v\n&amp;quot;, err)
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+		_, err = io.Copy(os.Stdout, resp.Body)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, &amp;quot;can&#39;t copy from body: %v\n&amp;quot;, err)
+		}
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+</description>
+    </item>
     
     <item>
       <title>Angular Checkbox</title>
