@@ -119,7 +119,7 @@
                 </div>
                 <div class="meta">
                     <div class="date" title="Sat Dec 24 2016 18:37:06 EST">Dec 24, 2016</div>
-                    <div class="reading-time"><div class="middot"></div>1 minute read</div>
+                    <div class="reading-time"><div class="middot"></div>2 minutes read</div>
                 </div>
             </div>
             <div class="markdown">
@@ -127,20 +127,93 @@
 
 <h4 id="task-web-crawler-with-go">Task: web crawler with go</h4>
 
-<pre><code class="language-Golang">func main() {
-	for _, v := range os.Args[1:] {
-		resp, err := http.Get(v)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, &quot;err with: %v\n&quot;, err)
-			os.Exit(1)
+<p>main.go</p>
+
+<pre><code class="language-Golang">type Links struct {
+	Level int
+	Link  string
+}
+
+var tokens = make(chan struct{}, 10)
+
+func main() {
+	linkList := make(chan Links)
+	go func() {
+		for _, v := range os.Args[1:] {
+			linkList &lt;- Links{1, v}
 		}
-		defer resp.Body.Close()
-		_, err = io.Copy(os.Stdout, resp.Body)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, &quot;can't copy from body: %v\n&quot;, err)
+	}()
+	depth := 4
+	m := make(map[string]bool)
+	for link := range linkList {
+		if !m[link.Link] &amp;&amp; link.Level &lt; depth {
+			m[link.Link] = true
+			tokens &lt;- struct{}{}
+			go func(link Links) {
+				fmt.Printf(&quot;link = %+v\n&quot;, link)
+				res := utility.Parser(link.Link)
+				&lt;-tokens
+				for _, v := range res {
+					linkList &lt;- Links{link.Level + 1, v}
+				}
+			}(link)
 		}
 	}
 }
+</code></pre>
+
+<p>utility.go</p>
+
+<pre><code class="language-Golang">func Parser(url string) []string {
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Errorf(&quot;http get %s with error %v&quot;, url, err)
+		return nil
+	}
+	defer resp.Body.Close()
+	doc, err := html.Parse(resp.Body)
+	if err != nil {
+		fmt.Errorf(&quot;parse problem %s with error %v&quot;, url, err)
+		return nil
+	}
+	c := &amp;Client{url: resp.Request.URL}
+	pre := c.findLink
+	res := forEachNode(doc, pre, nil)
+	return res
+}
+
+type Client struct {
+	url *url.URL
+}
+
+func (c *Client) findLink(n *html.Node) (res []string) {
+	if n.Type == html.ElementNode &amp;&amp; n.Data == &quot;a&quot; {
+		for _, v := range n.Attr {
+			if v.Key != &quot;href&quot; {
+				continue
+			}
+			temp, err := c.url.Parse(v.Val)
+			if err != nil {
+				continue
+			}
+			res = append(res, temp.String())
+		}
+	}
+	return
+}
+func forEachNode(n *html.Node, pre, post func(n *html.Node) []string) (res []string) {
+	if pre != nil {
+		res = append(res, pre(n)...)
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		res = append(res, forEachNode(c, pre, post)...)
+	}
+	if post != nil {
+		res = append(res, post(n)...)
+	}
+	return
+}
+
 </code></pre>
 
                 <br>
