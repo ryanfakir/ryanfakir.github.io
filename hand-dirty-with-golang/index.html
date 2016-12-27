@@ -119,7 +119,7 @@
                 </div>
                 <div class="meta">
                     <div class="date" title="Sat Dec 24 2016 18:37:06 EST">Dec 24, 2016</div>
-                    <div class="reading-time"><div class="middot"></div>2 minutes read</div>
+                    <div class="reading-time"><div class="middot"></div>3 minutes read</div>
                 </div>
             </div>
             <div class="markdown">
@@ -134,24 +134,34 @@
 	Link  string
 }
 
-var tokens = make(chan struct{}, 10)
+var tokens = make(chan struct{}, 1)
 
 func main() {
+	flag.Parse()
+	// depth := fvalue.Value
+	c := utility.New()
+	c.ParsingPath = &quot;https://ryanfakir.github.io&quot;
 	linkList := make(chan Links)
+	depth := 3
+	var i int
+	i++
 	go func() {
-		for _, v := range os.Args[1:] {
-			linkList &lt;- Links{1, v}
-		}
+		linkList &lt;- Links{1, c.ParsingPath}
 	}()
-	depth := 4
 	m := make(map[string]bool)
-	for link := range linkList {
+	for ; i &gt; 0; i-- {
+		fmt.Printf(&quot;i = %+v\n&quot;, i)
+		link := &lt;-linkList
+		//fmt.Printf(&quot;-------------- = %+v\n&quot;, &quot;--------------&quot;)
+		//fmt.Printf(&quot; runtime.NumGoroutine()= %+v\n&quot;, runtime.NumGoroutine())
+		// fmt.Printf(&quot;m = %+v\n&quot;, m)
 		if !m[link.Link] &amp;&amp; link.Level &lt; depth {
 			m[link.Link] = true
+			i++
 			tokens &lt;- struct{}{}
 			go func(link Links) {
-				fmt.Printf(&quot;link = %+v\n&quot;, link)
-				res := utility.Parser(link.Link)
+				// fmt.Printf(&quot;link = %+v\n&quot;, link)
+				res := c.Parser(link.Link)
 				&lt;-tokens
 				for _, v := range res {
 					linkList &lt;- Links{link.Level + 1, v}
@@ -160,14 +170,30 @@ func main() {
 		}
 	}
 }
+
 </code></pre>
 
 <p>utility.go</p>
 
-<pre><code class="language-Golang">func Parser(url string) []string {
+<pre><code class="language-Golang">var fvalue = DepthFlag{3}
+
+type Client struct {
+	Url         *url.URL
+	Fvalue      *DepthFlag
+	ParsingPath string
+}
+
+func New() *Client {
+	return &amp;Client{}
+}
+func (c *Client) Parser(url string) []string {
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Errorf(&quot;http get %s with error %v&quot;, url, err)
+		return nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Errorf(&quot;http get status not OK: %s with %v&quot;, url, err)
 		return nil
 	}
 	defer resp.Body.Close()
@@ -176,14 +202,45 @@ func main() {
 		fmt.Errorf(&quot;parse problem %s with error %v&quot;, url, err)
 		return nil
 	}
-	c := &amp;Client{url: resp.Request.URL}
+	c.Url = resp.Request.URL
 	pre := c.findLink
-	res := forEachNode(doc, pre, nil)
+	res := removeDuplicate(forEachNode(doc, pre, nil), url)
 	return res
 }
 
-type Client struct {
-	url *url.URL
+func removeDuplicate(elements []string, url string) (res []string) {
+	m := make(map[string]bool)
+	for _, v := range elements {
+		v = strings.TrimSuffix(v, &quot;/&quot;)
+		m[v] = true
+	}
+	for k, _ := range m {
+		if url != k {
+			res = append(res, k)
+		}
+	}
+	return
+}
+
+type DepthFlag struct {
+	Value int
+}
+
+func (d *DepthFlag) String() string {
+	return strconv.Itoa(d.Value)
+}
+func (d *DepthFlag) Set(s string) error {
+	var value int
+	_, err := fmt.Sscanf(s, &quot;%d&quot;, &amp;value)
+	if err != nil {
+		fmt.Errorf(&quot;problem with flag %s&quot;, s)
+		return err
+	}
+	d.Value = value
+	return nil
+}
+func init() {
+	flag.Var(&amp;fvalue, &quot;depth&quot;, &quot;Depth Parameter&quot;)
 }
 
 func (c *Client) findLink(n *html.Node) (res []string) {
@@ -192,7 +249,7 @@ func (c *Client) findLink(n *html.Node) (res []string) {
 			if v.Key != &quot;href&quot; {
 				continue
 			}
-			temp, err := c.url.Parse(v.Val)
+			temp, err := c.Url.Parse(v.Val)
 			if err != nil {
 				continue
 			}
@@ -213,7 +270,6 @@ func forEachNode(n *html.Node, pre, post func(n *html.Node) []string) (res []str
 	}
 	return
 }
-
 </code></pre>
 
                 <br>
