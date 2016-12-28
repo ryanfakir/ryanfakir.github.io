@@ -65,6 +65,128 @@ func main() {
 
 &lt;/code&gt;&lt;/pre&gt;
 
+&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;func main() {
+	start := time.Now()
+	c := utility.New()
+	c.ParsingPath = &amp;quot;https://ryanfakir.github.io&amp;quot;
+	linkList := make(chan Links)
+	out := make(chan Links)
+	depth := 3
+	go func() {
+		// start first link
+		linkList &amp;lt;- Links{1, c.ParsingPath}
+		tokens &amp;lt;- struct{}{}
+	}()
+	var res []Links
+	for i := 0; i &amp;lt; 2; i++ {
+		go func() {
+			for v := range linkList {
+				fmt.Printf(&amp;quot; runtime.NumGoroutine()= %+v\n&amp;quot;, runtime.NumGoroutine())
+				if v.Level &amp;gt;= depth {
+					continue
+				}
+				select {
+				case &amp;lt;-tokens:
+					// append untouch urls from res
+					var items []Links
+					for _, unTouchedLinks := range res {
+						for _, url := range c.Parser(unTouchedLinks.Link) {
+							items = append(items, Links{unTouchedLinks.Level + 1, url})
+						}
+					}
+					for _, url := range c.Parser(v.Link) {
+						items = append(items, Links{v.Level + 1, url})
+					}
+					res = append(res, items...)
+					// go func(v Links, res []string) {
+					for _, item := range res {
+						out &amp;lt;- item
+					}
+				default:
+					res = append(res, v)
+				}
+				//}(v, res)
+			}
+		}()
+	}
+
+	m := make(map[string]bool)
+	var i int
+	for link := range out {
+		if !m[link.Link] &amp;amp;&amp;amp; link.Level &amp;lt;= depth {
+			i++
+			fmt.Printf(&amp;quot;time.Since(start) = %+v\n&amp;quot;, time.Since(start))
+			fmt.Printf(&amp;quot;i = %+v\n&amp;quot;, i)
+			m[link.Link] = true
+			go func() {
+				tokens &amp;lt;- struct{}{}
+				linkList &amp;lt;- link
+			}()
+
+		}
+	}
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;type Links struct {
+	Level int
+	Link  string
+}
+
+var tokens = make(chan struct{}, 1)
+
+func main() {
+	start := time.Now()
+	c := utility.New()
+	c.ParsingPath = &amp;quot;https://ryanfakir.github.io&amp;quot;
+	linkList := make(chan Links)
+	out := make(chan Links)
+	depth := 3
+	wg := &amp;amp;sync.WaitGroup{}
+	go func() {
+		linkList &amp;lt;- Links{1, c.ParsingPath}
+		wg.Add(1)
+	}()
+	for i := 0; i &amp;lt; 2; i++ {
+		go func() {
+			for v := range linkList {
+				fmt.Printf(&amp;quot; runtime.NumGoroutine()= %+v\n&amp;quot;, runtime.NumGoroutine())
+				if v.Level &amp;gt;= depth {
+					continue
+				}
+				res := c.Parser(v.Link)
+				go func(v Links, res []string) {
+					for _, item := range res {
+						wg.Add(1)
+						out &amp;lt;- Links{v.Level + 1, item}
+					}
+				}(v, res)
+			}
+		}()
+	}
+
+	m := make(map[string]bool)
+	var i int
+	for link := range out {
+		if !m[link.Link] &amp;amp;&amp;amp; link.Level &amp;lt;= depth {
+			wg.Done()
+			fmt.Printf(&amp;quot;time.Since(start) = %+v\n&amp;quot;, time.Since(start))
+			// How many link been processed
+			i++
+			fmt.Printf(&amp;quot;i = %+v\n&amp;quot;, i)
+			m[link.Link] = true
+			linkList &amp;lt;- link
+		}
+	}
+	// This won&#39;t work because out channel never end, so it dead lock, even though all links within depth finished processing
+	wg.Wait()
+	fmt.Println(&amp;quot;done&amp;quot;)
+}
+
+
+&lt;/code&gt;&lt;/pre&gt;
+
 &lt;p&gt;utility.go&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;var fvalue = DepthFlag{3}
