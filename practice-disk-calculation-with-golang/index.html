@@ -14,10 +14,10 @@
 <title>
 
 
-     Blog 
+     Practice Disk Calculation With Golang 
 
 </title>
-<link rel="canonical" href="https://ryanfakir.github.io/blog/">
+<link rel="canonical" href="https://ryanfakir.github.io/practice-disk-calculation-with-golang/">
 
 
 <script type="text/javascript">
@@ -48,8 +48,6 @@
 >
 
 
-
-  <link href="https://ryanfakir.github.io/blog/index.xml" rel="alternate" type="application/rss+xml" title="Peng Yan" />
 
 
 
@@ -105,34 +103,86 @@
     </div>
 </section>
 
-<section class="main">
+
+<section class="main post non-narrow zero-top-spacing">
     <div class="container">
         <div class="content">
-            <div class="page-heading">Blog</div>
-            <ul>
-                
-                <li class="post-item">
-    <span class="meta">Dec 28, 2016</span>
-    <a href="https://ryanfakir.github.io/practice-disk-calculation-with-golang/"><span>Practice Disk Calculation With Golang</span></a>
-</li>
+            <div class="front-matter">
+                <div class="title-container">
+                    <div class="page-heading">
 
-                
-                <li class="post-item">
-    <span class="meta">Dec 24, 2016</span>
-    <a href="https://ryanfakir.github.io/practice-web-crawler-with-golang/"><span>Practice Web Crawler With Golang</span></a>
-</li>
+    Practice Disk Calculation With Golang
 
-                
-                <li class="post-item">
-    <span class="meta">Dec 18, 2016</span>
-    <a href="https://ryanfakir.github.io/angular-checkbox/"><span>Angular Checkbox</span></a>
-</li>
+</div>
 
+                    <div class="initials"><a href="https://ryanfakir.github.io/">ad</a></div>
+                </div>
+                <div class="meta">
+                    <div class="date" title="Wed Dec 28 2016 21:47:20 EST">Dec 28, 2016</div>
+                    <div class="reading-time"><div class="middot"></div>1 minute read</div>
+                </div>
+            </div>
+            <div class="markdown">
                 
-            </ul>
+
+<h4 id="task-create-disk-calculation-with-go">Task: create disk calculation with go</h4>
+
+<pre><code class="language-Golang">func main() {
+
+	flag.Parse()
+
+	foldername := flag.Args()
+	if len(foldername) == 0 {
+		fmt.Println(&quot;No folder name detected&quot;)
+		os.Exit(1)
+	}
+	out := make(chan int64)
+	go func() {
+		for _, name := range foldername {
+			loopDir(name, out)
+		}
+		close(out)
+	}()
+	var fileNumber, nByte int64
+	for size := range out {
+		fileNumber++
+		nByte += size
+	}
+	fmt.Printf(&quot;count %d files, total size: %.1f GB\n&quot;, fileNumber, float64(nByte)/1e9)
+}
+func loopDir(foldername string, out chan&lt;- int64) {
+	for _, v := range spanDir(foldername) {
+		if v.IsDir() {
+			subDir := filepath.Join(foldername, v.Name())
+			loopDir(subDir, out)
+		} else {
+			out &lt;- v.Size()
+		}
+	}
+}
+
+func spanDir(foldername string) []os.FileInfo {
+	subFolder, err := ioutil.ReadDir(foldername)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, &quot;Reading folder with error: %v\n&quot;, err)
+		return nil
+	}
+	return subFolder
+}
+
+</code></pre>
+
+                <br>
+                <p><a href="https://ryanfakir.github.io/blog/">Back to posts</a></p>
+            </div>
+            <br>
+            <div class="disqus">
+                
+            </div>
         </div>
     </div>
 </section>
+
 
 
 <script type="text/javascript">
@@ -161,5 +211,4 @@ try {
 
 </body>
 </html>
-
 

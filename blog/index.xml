@@ -6,15 +6,72 @@
     <description>Recent content in Blog on Peng Yan</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-US</language>
-    <lastBuildDate>Sat, 24 Dec 2016 18:37:06 -0500</lastBuildDate>
+    <lastBuildDate>Wed, 28 Dec 2016 21:47:20 -0500</lastBuildDate>
     <atom:link href="https://ryanfakir.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
-      <title>Hand Dirty with Golang</title>
-      <link>https://ryanfakir.github.io/hand-dirty-with-golang/</link>
+      <title>Practice Disk Calculation With Golang</title>
+      <link>https://ryanfakir.github.io/practice-disk-calculation-with-golang/</link>
+      <pubDate>Wed, 28 Dec 2016 21:47:20 -0500</pubDate>
+      
+      <guid>https://ryanfakir.github.io/practice-disk-calculation-with-golang/</guid>
+      <description>
+
+&lt;h4 id=&#34;task-create-disk-calculation-with-go&#34;&gt;Task: create disk calculation with go&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;func main() {
+
+	flag.Parse()
+
+	foldername := flag.Args()
+	if len(foldername) == 0 {
+		fmt.Println(&amp;quot;No folder name detected&amp;quot;)
+		os.Exit(1)
+	}
+	out := make(chan int64)
+	go func() {
+		for _, name := range foldername {
+			loopDir(name, out)
+		}
+		close(out)
+	}()
+	var fileNumber, nByte int64
+	for size := range out {
+		fileNumber++
+		nByte += size
+	}
+	fmt.Printf(&amp;quot;count %d files, total size: %.1f GB\n&amp;quot;, fileNumber, float64(nByte)/1e9)
+}
+func loopDir(foldername string, out chan&amp;lt;- int64) {
+	for _, v := range spanDir(foldername) {
+		if v.IsDir() {
+			subDir := filepath.Join(foldername, v.Name())
+			loopDir(subDir, out)
+		} else {
+			out &amp;lt;- v.Size()
+		}
+	}
+}
+
+func spanDir(foldername string) []os.FileInfo {
+	subFolder, err := ioutil.ReadDir(foldername)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, &amp;quot;Reading folder with error: %v\n&amp;quot;, err)
+		return nil
+	}
+	return subFolder
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Practice Web Crawler With Golang</title>
+      <link>https://ryanfakir.github.io/practice-web-crawler-with-golang/</link>
       <pubDate>Sat, 24 Dec 2016 18:37:06 -0500</pubDate>
       
-      <guid>https://ryanfakir.github.io/hand-dirty-with-golang/</guid>
+      <guid>https://ryanfakir.github.io/practice-web-crawler-with-golang/</guid>
       <description>
 
 &lt;h4 id=&#34;task-web-crawler-with-go&#34;&gt;Task: web crawler with go&lt;/h4&gt;
