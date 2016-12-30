@@ -19,34 +19,81 @@
 
 &lt;h4 id=&#34;task-create-disk-calculation-with-go&#34;&gt;Task: create disk calculation with go&lt;/h4&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;func main() {
+&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;var tokens = make(chan struct{}, 20)
+var done = make(chan struct{})
 
+const (
+	interval = 500
+)
+
+func main() {
 	flag.Parse()
-
 	foldername := flag.Args()
-	if len(foldername) == 0 {
-		fmt.Println(&amp;quot;No folder name detected&amp;quot;)
-		os.Exit(1)
-	}
 	out := make(chan int64)
+	wg := &amp;amp;sync.WaitGroup{}
+	tick := time.Tick(interval * time.Millisecond)
+	wg.Add(1)
 	go func() {
 		for _, name := range foldername {
-			loopDir(name, out)
+			go loopDir(name, out, wg)
 		}
+	}()
+	go func() {
+		wg.Wait()
 		close(out)
 	}()
+
+	go func() {
+		os.Stdin.Read(make([]byte, 1))
+		close(done)
+	}()
+
 	var fileNumber, nByte int64
-	for size := range out {
-		fileNumber++
-		nByte += size
+	for {
+		select {
+		case &amp;lt;-done:
+			for range out {
+			}
+			return
+		case size, ok := &amp;lt;-out:
+			if !ok {
+				print(fileNumber, nByte)
+				return
+			}
+			fileNumber++
+			nByte += size
+		case &amp;lt;-tick:
+			print(fileNumber, nByte)
+		}
 	}
-	fmt.Printf(&amp;quot;count %d files, total size: %.1f GB\n&amp;quot;, fileNumber, float64(nByte)/1e9)
 }
-func loopDir(foldername string, out chan&amp;lt;- int64) {
+
+func print(fileNumber, nByte int64) {
+	fmt.Printf(&amp;quot;count %d files, total size: %.1f KB\n&amp;quot;, fileNumber, float64(nByte)/1e3)
+
+}
+
+func cancel() bool {
+	select {
+	case &amp;lt;-done:
+		return true
+	default:
+		return false
+	}
+}
+
+func loopDir(foldername string, out chan&amp;lt;- int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	if cancel() {
+		return
+	}
 	for _, v := range spanDir(foldername) {
 		if v.IsDir() {
 			subDir := filepath.Join(foldername, v.Name())
-			loopDir(subDir, out)
+			tokens &amp;lt;- struct{}{}
+			wg.Add(1)
+			go loopDir(subDir, out, wg)
+			&amp;lt;-tokens
 		} else {
 			out &amp;lt;- v.Size()
 		}
@@ -54,6 +101,9 @@ func loopDir(foldername string, out chan&amp;lt;- int64) {
 }
 
 func spanDir(foldername string) []os.FileInfo {
+	if cancel() {
+		return nil
+	}
 	subFolder, err := ioutil.ReadDir(foldername)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, &amp;quot;Reading folder with error: %v\n&amp;quot;, err)
@@ -61,6 +111,7 @@ func spanDir(foldername string) []os.FileInfo {
 	}
 	return subFolder
 }
+
 
 &lt;/code&gt;&lt;/pre&gt;
 </description>
@@ -76,51 +127,68 @@ func spanDir(foldername string) []os.FileInfo {
 
 &lt;h4 id=&#34;task-web-crawler-with-go&#34;&gt;Task: web crawler with go&lt;/h4&gt;
 
-&lt;p&gt;main.go&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://forum.golangbridge.org/t/question-about-goroutine/4168/6&#34;&gt;Here&lt;/a&gt; is link I try to ask for help from community, Luckily Golang community have tons of terrific people to help.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;type Links struct {
-	Level int
-	Link  string
-}
+&lt;p&gt;As we can see, to make goroutine is safely quit is tricky, and final version is still error-prone.&lt;br /&gt;
+In next section, will take look at &lt;a href=&#34;https://golang.org/pkg/context/&#34;&gt;context&lt;/a&gt; to writing easy code w/o much thinking.&lt;/p&gt;
 
-var tokens = make(chan struct{}, 1)
+&lt;h3 id=&#34;main-go-final-version-with-less-goroutine-generated-less-time-consume&#34;&gt;main.go: Final version: with less goroutine generated, less time consume&lt;/h3&gt;
 
-func main() {
-	flag.Parse()
-	// depth := fvalue.Value
+&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;func main() {
+	start := time.Now()
 	c := utility.New()
 	c.ParsingPath = &amp;quot;https://ryanfakir.github.io&amp;quot;
 	linkList := make(chan Links)
+	out := make(chan Links)
 	depth := 3
-	var i int
-	i++
+	wg := &amp;amp;sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
 		linkList &amp;lt;- Links{1, c.ParsingPath}
 	}()
-	m := make(map[string]bool)
-	for ; i &amp;gt; 0; i-- {
-		fmt.Printf(&amp;quot;i = %+v\n&amp;quot;, i)
-		link := &amp;lt;-linkList
-		//fmt.Printf(&amp;quot;-------------- = %+v\n&amp;quot;, &amp;quot;--------------&amp;quot;)
-		//fmt.Printf(&amp;quot; runtime.NumGoroutine()= %+v\n&amp;quot;, runtime.NumGoroutine())
-		// fmt.Printf(&amp;quot;m = %+v\n&amp;quot;, m)
-		if !m[link.Link] &amp;amp;&amp;amp; link.Level &amp;lt; depth {
-			m[link.Link] = true
-			i++
-			tokens &amp;lt;- struct{}{}
-			go func(link Links) {
-				// fmt.Printf(&amp;quot;link = %+v\n&amp;quot;, link)
-				res := c.Parser(link.Link)
-				&amp;lt;-tokens
-				for _, v := range res {
-					linkList &amp;lt;- Links{link.Level + 1, v}
+	for i := 0; i &amp;lt; 2; i++ {
+		go func() {
+			for v := range linkList {
+				fmt.Printf(&amp;quot; runtime.NumGoroutine()= %+v\n&amp;quot;, runtime.NumGoroutine())
+				if v.Level &amp;gt;= depth {
+					// resolve work 
+					wg.Done()
+					continue
 				}
-			}(link)
+				res := c.Parser(v.Link)
+				go func(v Links, res []string) {
+					// resolve work for previous-round link
+					defer wg.Done()
+					for _, item := range res {
+						out &amp;lt;- Links{v.Level + 1, item}
+					}
+				}(v, res)
+			}
+		}()
+	}
+
+	go func() {
+		// wait all work done and quit job
+		wg.Wait()
+		close(linkList)
+		close(out)
+	}()
+	m := make(map[string]bool)
+	for link := range out {
+		if !m[link.Link] &amp;amp;&amp;amp; link.Level &amp;lt;= depth {
+			fmt.Printf(&amp;quot;time.Since(start) = %+v\n&amp;quot;, time.Since(start))
+			// How many link been processed
+			// Next-around links need to be registered in wg
+			wg.Add(1)
+			m[link.Link] = true
+			linkList &amp;lt;- link
 		}
 	}
+	fmt.Println(&amp;quot;done&amp;quot;)
 }
-
 &lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;second-way-to-go-unluckily-not-figure-out-right-way-to-quit&#34;&gt;Second way to go unluckily not figure out right way to quit&lt;/h3&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;func main() {
 	start := time.Now()
@@ -183,68 +251,9 @@ func main() {
 		}
 	}
 }
-
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;type Links struct {
-	Level int
-	Link  string
-}
-
-var tokens = make(chan struct{}, 1)
-
-func main() {
-	start := time.Now()
-	c := utility.New()
-	c.ParsingPath = &amp;quot;https://ryanfakir.github.io&amp;quot;
-	linkList := make(chan Links)
-	out := make(chan Links)
-	depth := 3
-	wg := &amp;amp;sync.WaitGroup{}
-	go func() {
-		linkList &amp;lt;- Links{1, c.ParsingPath}
-		wg.Add(1)
-	}()
-	for i := 0; i &amp;lt; 2; i++ {
-		go func() {
-			for v := range linkList {
-				fmt.Printf(&amp;quot; runtime.NumGoroutine()= %+v\n&amp;quot;, runtime.NumGoroutine())
-				if v.Level &amp;gt;= depth {
-					continue
-				}
-				res := c.Parser(v.Link)
-				go func(v Links, res []string) {
-					for _, item := range res {
-						wg.Add(1)
-						out &amp;lt;- Links{v.Level + 1, item}
-					}
-				}(v, res)
-			}
-		}()
-	}
-
-	m := make(map[string]bool)
-	var i int
-	for link := range out {
-		if !m[link.Link] &amp;amp;&amp;amp; link.Level &amp;lt;= depth {
-			wg.Done()
-			fmt.Printf(&amp;quot;time.Since(start) = %+v\n&amp;quot;, time.Since(start))
-			// How many link been processed
-			i++
-			fmt.Printf(&amp;quot;i = %+v\n&amp;quot;, i)
-			m[link.Link] = true
-			linkList &amp;lt;- link
-		}
-	}
-	// This won&#39;t work because out channel never end, so it dead lock, even though all links within depth finished processing
-	wg.Wait()
-	fmt.Println(&amp;quot;done&amp;quot;)
-}
-
-
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;utility.go&lt;/p&gt;
+&lt;h3 id=&#34;utility-go&#34;&gt;utility.go&lt;/h3&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;var fvalue = DepthFlag{3}
 

@@ -119,7 +119,7 @@
                 </div>
                 <div class="meta">
                     <div class="date" title="Wed Dec 28 2016 21:47:20 EST">Dec 28, 2016</div>
-                    <div class="reading-time"><div class="middot"></div>1 minute read</div>
+                    <div class="reading-time"><div class="middot"></div>2 minutes read</div>
                 </div>
             </div>
             <div class="markdown">
@@ -127,34 +127,81 @@
 
 <h4 id="task-create-disk-calculation-with-go">Task: create disk calculation with go</h4>
 
-<pre><code class="language-Golang">func main() {
+<pre><code class="language-Golang">var tokens = make(chan struct{}, 20)
+var done = make(chan struct{})
 
+const (
+	interval = 500
+)
+
+func main() {
 	flag.Parse()
-
 	foldername := flag.Args()
-	if len(foldername) == 0 {
-		fmt.Println(&quot;No folder name detected&quot;)
-		os.Exit(1)
-	}
 	out := make(chan int64)
+	wg := &amp;sync.WaitGroup{}
+	tick := time.Tick(interval * time.Millisecond)
+	wg.Add(1)
 	go func() {
 		for _, name := range foldername {
-			loopDir(name, out)
+			go loopDir(name, out, wg)
 		}
+	}()
+	go func() {
+		wg.Wait()
 		close(out)
 	}()
+
+	go func() {
+		os.Stdin.Read(make([]byte, 1))
+		close(done)
+	}()
+
 	var fileNumber, nByte int64
-	for size := range out {
-		fileNumber++
-		nByte += size
+	for {
+		select {
+		case &lt;-done:
+			for range out {
+			}
+			return
+		case size, ok := &lt;-out:
+			if !ok {
+				print(fileNumber, nByte)
+				return
+			}
+			fileNumber++
+			nByte += size
+		case &lt;-tick:
+			print(fileNumber, nByte)
+		}
 	}
-	fmt.Printf(&quot;count %d files, total size: %.1f GB\n&quot;, fileNumber, float64(nByte)/1e9)
 }
-func loopDir(foldername string, out chan&lt;- int64) {
+
+func print(fileNumber, nByte int64) {
+	fmt.Printf(&quot;count %d files, total size: %.1f KB\n&quot;, fileNumber, float64(nByte)/1e3)
+
+}
+
+func cancel() bool {
+	select {
+	case &lt;-done:
+		return true
+	default:
+		return false
+	}
+}
+
+func loopDir(foldername string, out chan&lt;- int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	if cancel() {
+		return
+	}
 	for _, v := range spanDir(foldername) {
 		if v.IsDir() {
 			subDir := filepath.Join(foldername, v.Name())
-			loopDir(subDir, out)
+			tokens &lt;- struct{}{}
+			wg.Add(1)
+			go loopDir(subDir, out, wg)
+			&lt;-tokens
 		} else {
 			out &lt;- v.Size()
 		}
@@ -162,6 +209,9 @@ func loopDir(foldername string, out chan&lt;- int64) {
 }
 
 func spanDir(foldername string) []os.FileInfo {
+	if cancel() {
+		return nil
+	}
 	subFolder, err := ioutil.ReadDir(foldername)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, &quot;Reading folder with error: %v\n&quot;, err)
@@ -169,6 +219,7 @@ func spanDir(foldername string) []os.FileInfo {
 	}
 	return subFolder
 }
+
 
 </code></pre>
 

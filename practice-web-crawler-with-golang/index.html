@@ -127,51 +127,68 @@
 
 <h4 id="task-web-crawler-with-go">Task: web crawler with go</h4>
 
-<p>main.go</p>
+<p><a href="https://forum.golangbridge.org/t/question-about-goroutine/4168/6">Here</a> is link I try to ask for help from community, Luckily Golang community have tons of terrific people to help.</p>
 
-<pre><code class="language-Golang">type Links struct {
-	Level int
-	Link  string
-}
+<p>As we can see, to make goroutine is safely quit is tricky, and final version is still error-prone.<br />
+In next section, will take look at <a href="https://golang.org/pkg/context/">context</a> to writing easy code w/o much thinking.</p>
 
-var tokens = make(chan struct{}, 1)
+<h3 id="main-go-final-version-with-less-goroutine-generated-less-time-consume">main.go: Final version: with less goroutine generated, less time consume</h3>
 
-func main() {
-	flag.Parse()
-	// depth := fvalue.Value
+<pre><code class="language-Golang">func main() {
+	start := time.Now()
 	c := utility.New()
 	c.ParsingPath = &quot;https://ryanfakir.github.io&quot;
 	linkList := make(chan Links)
+	out := make(chan Links)
 	depth := 3
-	var i int
-	i++
+	wg := &amp;sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
 		linkList &lt;- Links{1, c.ParsingPath}
 	}()
-	m := make(map[string]bool)
-	for ; i &gt; 0; i-- {
-		fmt.Printf(&quot;i = %+v\n&quot;, i)
-		link := &lt;-linkList
-		//fmt.Printf(&quot;-------------- = %+v\n&quot;, &quot;--------------&quot;)
-		//fmt.Printf(&quot; runtime.NumGoroutine()= %+v\n&quot;, runtime.NumGoroutine())
-		// fmt.Printf(&quot;m = %+v\n&quot;, m)
-		if !m[link.Link] &amp;&amp; link.Level &lt; depth {
-			m[link.Link] = true
-			i++
-			tokens &lt;- struct{}{}
-			go func(link Links) {
-				// fmt.Printf(&quot;link = %+v\n&quot;, link)
-				res := c.Parser(link.Link)
-				&lt;-tokens
-				for _, v := range res {
-					linkList &lt;- Links{link.Level + 1, v}
+	for i := 0; i &lt; 2; i++ {
+		go func() {
+			for v := range linkList {
+				fmt.Printf(&quot; runtime.NumGoroutine()= %+v\n&quot;, runtime.NumGoroutine())
+				if v.Level &gt;= depth {
+					// resolve work 
+					wg.Done()
+					continue
 				}
-			}(link)
+				res := c.Parser(v.Link)
+				go func(v Links, res []string) {
+					// resolve work for previous-round link
+					defer wg.Done()
+					for _, item := range res {
+						out &lt;- Links{v.Level + 1, item}
+					}
+				}(v, res)
+			}
+		}()
+	}
+
+	go func() {
+		// wait all work done and quit job
+		wg.Wait()
+		close(linkList)
+		close(out)
+	}()
+	m := make(map[string]bool)
+	for link := range out {
+		if !m[link.Link] &amp;&amp; link.Level &lt;= depth {
+			fmt.Printf(&quot;time.Since(start) = %+v\n&quot;, time.Since(start))
+			// How many link been processed
+			// Next-around links need to be registered in wg
+			wg.Add(1)
+			m[link.Link] = true
+			linkList &lt;- link
 		}
 	}
+	fmt.Println(&quot;done&quot;)
 }
-
 </code></pre>
+
+<h3 id="second-way-to-go-unluckily-not-figure-out-right-way-to-quit">Second way to go unluckily not figure out right way to quit</h3>
 
 <pre><code class="language-Golang">func main() {
 	start := time.Now()
@@ -234,68 +251,9 @@ func main() {
 		}
 	}
 }
-
 </code></pre>
 
-<pre><code class="language-Golang">type Links struct {
-	Level int
-	Link  string
-}
-
-var tokens = make(chan struct{}, 1)
-
-func main() {
-	start := time.Now()
-	c := utility.New()
-	c.ParsingPath = &quot;https://ryanfakir.github.io&quot;
-	linkList := make(chan Links)
-	out := make(chan Links)
-	depth := 3
-	wg := &amp;sync.WaitGroup{}
-	go func() {
-		linkList &lt;- Links{1, c.ParsingPath}
-		wg.Add(1)
-	}()
-	for i := 0; i &lt; 2; i++ {
-		go func() {
-			for v := range linkList {
-				fmt.Printf(&quot; runtime.NumGoroutine()= %+v\n&quot;, runtime.NumGoroutine())
-				if v.Level &gt;= depth {
-					continue
-				}
-				res := c.Parser(v.Link)
-				go func(v Links, res []string) {
-					for _, item := range res {
-						wg.Add(1)
-						out &lt;- Links{v.Level + 1, item}
-					}
-				}(v, res)
-			}
-		}()
-	}
-
-	m := make(map[string]bool)
-	var i int
-	for link := range out {
-		if !m[link.Link] &amp;&amp; link.Level &lt;= depth {
-			wg.Done()
-			fmt.Printf(&quot;time.Since(start) = %+v\n&quot;, time.Since(start))
-			// How many link been processed
-			i++
-			fmt.Printf(&quot;i = %+v\n&quot;, i)
-			m[link.Link] = true
-			linkList &lt;- link
-		}
-	}
-	// This won't work because out channel never end, so it dead lock, even though all links within depth finished processing
-	wg.Wait()
-	fmt.Println(&quot;done&quot;)
-}
-
-
-</code></pre>
-
-<p>utility.go</p>
+<h3 id="utility-go">utility.go</h3>
 
 <pre><code class="language-Golang">var fvalue = DepthFlag{3}
 
