@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<meta name="HandheldFriendly" content="True">
+<meta name="MobileOptimized" content="320">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="I am nobody, but with curiosity">
+
+<base href="https://ryanfakir.github.io/">
+<title>
+
+
+     Practice Disk Calculation With Go 
+
+</title>
+<link rel="canonical" href="https://ryanfakir.github.io/practice-disk-calculation-with-go/">
+
+
+<script type="text/javascript">
+    var baseURL = 'https:\/\/ryanfakir.github.io\/';
+    var host = baseURL.substring(0, baseURL.length - 1).replace(/\//g, '');
+    if ((host === window.location.host) && (window.location.protocol !== 'https:')) {
+        window.location.protocol = 'https:';
+    }
+</script>
+
+
+
+
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.8.0/styles/default.min.css">
+
+
+<link rel="stylesheet" href="https://ryanfakir.github.io/css/reset.css">
+<link rel="stylesheet" href="https://ryanfakir.github.io/css/pygments.css">
+<link rel="stylesheet" href="https://ryanfakir.github.io/css/main.css">
+
+
+
+
+<link rel="shortcut icon"
+
+    href="https://ryanfakir.github.io/img/leaf.ico"
+
+>
+
+
+
+
+
+
+</head>
+
+
+<body lang="en">
+
+<section class="header"> 
+    <div class="container">
+        <div class="content">
+            
+            <a href="https://ryanfakir.github.io/"><div class="name">Peng Yan</div></a>
+        </div>
+    </div>
+</section>
+
+<section class="icons">
+    <div class="container">
+        <div class="content">
+
+        
+            <a href="//github.com/ryanfakir" target="_blank">
+                <i class="icon ion-social-github"></i>
+            </a>
+        
+        
+        
+
+        
+            <a href="//linkedin.com/in/ryanfakir" target="_blank">
+                <i class="icon ion-social-linkedin"></i>
+            </a>
+        
+
+        
+
+        
+
+        
+            <a href="mailto:pengyan@buffalo.edu">
+                <i class="icon ion-ios-email larger"></i>
+            </a>
+        
+
+        
+            <a href="https://ryanfakir.github.io/index.xml">
+                <i class="icon ion-social-rss larger"></i>
+            </a>
+        
+        </div>
+    </div>
+</section>
+
+
+<section class="main post non-narrow zero-top-spacing">
+    <div class="container">
+        <div class="content">
+            <div class="front-matter">
+                <div class="title-container">
+                    <div class="page-heading">
+
+    Practice Disk Calculation With Go
+
+</div>
+
+                    <div class="initials"><a href="https://ryanfakir.github.io/">ad</a></div>
+                </div>
+                <div class="meta">
+                    <div class="date" title="Wed Dec 28 2016 21:47:20 EST">Dec 28, 2016</div>
+                    <div class="reading-time"><div class="middot"></div>3 minutes read</div>
+                </div>
+            </div>
+            <div class="markdown">
+                
+
+<h4 id="task-create-disk-calculation-with-go">Task: create disk calculation with go</h4>
+
+<p>to cancel long-wait goroutine, <a href="https://golang.org/pkg/context/">context</a> package provide really nice abstraction.<br />
+Here is code using context to cancel loopDir, so in client side, we don&rsquo;t need worry about goroutine leak.</p>
+
+<pre><code class="language-Golang">var tokens = make(chan struct{}, 20)
+var done = make(chan struct{})
+
+const (
+	interval = 500
+	timeout  = 1300
+)
+
+func main() {
+	flag.Parse()
+	start := time.Now()
+	foldername := flag.Args()
+	// create ctx with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Millisecond)
+	defer func() {
+		cancel()
+	}()
+	defer func() {
+		fmt.Printf(&quot;defer on  = %+v\n&quot;, &quot;main&quot;)
+	}()
+	out := make(chan int64)
+	wg := &amp;sync.WaitGroup{}
+	tick := time.Tick(interval * time.Millisecond)
+	wg.Add(1)
+	go func() {
+		for _, name := range foldername {
+			go loopDir(ctx, name, out, wg)
+		}
+	}()
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	go func() {
+		os.Stdin.Read(make([]byte, 1))
+		close(done)
+	}()
+
+	var fileNumber, nByte int64
+	for {
+		select {
+		case &lt;-done:
+			// when user hit key, exit the program
+			for range out {
+			}
+			return
+		case size, ok := &lt;-out:
+			if !ok {
+				fmt.Printf(&quot;time.Since(start) = %+v\n&quot;, time.Since(start))
+				panic(&quot;show me&quot;)
+				print(fileNumber, nByte)
+				return
+			}
+			fileNumber++
+			nByte += size
+		case &lt;-tick:
+			print(fileNumber, nByte)
+		}
+	}
+}
+
+func print(fileNumber, nByte int64) {
+	fmt.Printf(&quot;count %d files, total size: %.1f KB\n&quot;, fileNumber, float64(nByte)/1e3)
+}
+
+func loopDir(ctx context.Context, foldername string, out chan&lt;- int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	select {
+	case &lt;-ctx.Done():
+	    //ctx will cancel after timeout
+		return
+	default:
+		for _, v := range spanDir(foldername) {
+			if v.IsDir() {
+				subDir := filepath.Join(foldername, v.Name())
+				tokens &lt;- struct{}{}
+				wg.Add(1)
+				go loopDir(ctx, subDir, out, wg)
+				&lt;-tokens
+			} else {
+				out &lt;- v.Size()
+			}
+		}
+	}
+}
+
+func spanDir(foldername string) []os.FileInfo {
+	subFolder, err := ioutil.ReadDir(foldername)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, &quot;Reading folder with error: %v\n&quot;, err)
+		return nil
+	}
+	return subFolder
+}
+
+</code></pre>
+
+<pre><code class="language-Golang">var tokens = make(chan struct{}, 20)
+var done = make(chan struct{})
+
+const (
+	interval = 500
+)
+
+func main() {
+	flag.Parse()
+	foldername := flag.Args()
+	out := make(chan int64)
+	wg := &amp;sync.WaitGroup{}
+	tick := time.Tick(interval * time.Millisecond)
+	wg.Add(1)
+	go func() {
+		for _, name := range foldername {
+			go loopDir(name, out, wg)
+		}
+	}()
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	go func() {
+		os.Stdin.Read(make([]byte, 1))
+		close(done)
+	}()
+
+	var fileNumber, nByte int64
+	for {
+		select {
+		case &lt;-done:
+			for range out {
+			}
+			return
+		case size, ok := &lt;-out:
+			if !ok {
+				print(fileNumber, nByte)
+				return
+			}
+			fileNumber++
+			nByte += size
+		case &lt;-tick:
+			print(fileNumber, nByte)
+		}
+	}
+}
+
+func print(fileNumber, nByte int64) {
+	fmt.Printf(&quot;count %d files, total size: %.1f KB\n&quot;, fileNumber, float64(nByte)/1e3)
+
+}
+
+func cancel() bool {
+	select {
+	case &lt;-done:
+		return true
+	default:
+		return false
+	}
+}
+
+func loopDir(foldername string, out chan&lt;- int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	if cancel() {
+		return
+	}
+	for _, v := range spanDir(foldername) {
+		if v.IsDir() {
+			subDir := filepath.Join(foldername, v.Name())
+			tokens &lt;- struct{}{}
+			wg.Add(1)
+			go loopDir(subDir, out, wg)
+			&lt;-tokens
+		} else {
+			out &lt;- v.Size()
+		}
+	}
+}
+
+func spanDir(foldername string) []os.FileInfo {
+	if cancel() {
+		return nil
+	}
+	subFolder, err := ioutil.ReadDir(foldername)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, &quot;Reading folder with error: %v\n&quot;, err)
+		return nil
+	}
+	return subFolder
+}
+
+
+</code></pre>
+
+                <br>
+                <p><a href="https://ryanfakir.github.io/blog/">Back to posts</a></p>
+            </div>
+            <br>
+            <div class="disqus">
+                
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+    var pageTracker = _gat._getTracker("XYZ");
+    pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+
+
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.8.0/highlight.min.js"></script>
+  
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.8.0/languages/go.min.js"></script>
+  
+
+  <script type="text/javascript">
+    hljs.initHighlightingOnLoad();
+  </script>
+
+
+
+</body>
+</html>
+

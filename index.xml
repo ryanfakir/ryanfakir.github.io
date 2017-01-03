@@ -6,18 +6,179 @@
     <description>Recent content on Peng Yan</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-US</language>
-    <lastBuildDate>Wed, 28 Dec 2016 21:47:20 -0500</lastBuildDate>
+    <lastBuildDate>Mon, 02 Jan 2017 20:37:42 -0500</lastBuildDate>
     <atom:link href="https://ryanfakir.github.io/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
-      <title>Practice Disk Calculation With Golang</title>
-      <link>https://ryanfakir.github.io/practice-disk-calculation-with-golang/</link>
+      <title>Practice Cache Client With Go</title>
+      <link>https://ryanfakir.github.io/practice-cache-client-with-go/</link>
+      <pubDate>Mon, 02 Jan 2017 20:37:42 -0500</pubDate>
+      
+      <guid>https://ryanfakir.github.io/practice-cache-client-with-go/</guid>
+      <description>
+
+&lt;h4 id=&#34;task-cache-client-with-go&#34;&gt;Task: cache client with go&lt;/h4&gt;
+
+&lt;p&gt;Since go is design for easy compose concurrency-safe code. There are some ways to adopt it.&lt;br /&gt;
+To make client concurrency-safe, need to use lock without harming too much efficiency.&lt;br /&gt;
+By using Context, we allow client call able to timeout safe without leaking goroutine.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-golang&#34;&gt;func (c *Client) Call(ctx context.Context, key string) (value interface{}, err error) {
+	c.Lock()
+	e := c.cache[key]
+	if e == nil {
+		e = &amp;amp;CStruct{key, make(chan struct{}), nil}
+		c.cache[key] = e
+		c.Unlock()
+		e.result = c.flist(key)
+		close(e.ready)
+	} else {
+		c.Unlock()
+	}
+	select {
+	case &amp;lt;-ctx.Done():
+		return nil, ctx.Err()
+	case &amp;lt;-e.ready:
+		return e.result, nil
+	}
+}
+
+type CStruct struct {
+	key    string
+	ready  chan struct{}
+	result interface{}
+}
+
+type Client struct {
+	cache map[string]*CStruct
+	sync.Mutex
+	flist func(key string) interface{}
+}
+
+type Config struct {
+	Function func(key string) interface{}
+}
+
+func New(config ...Config) (*Client, error) {
+	// option config
+	c := &amp;amp;Client{cache: make(map[string]*CStruct)}
+	c.flist = config[0].Function
+	return c, nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Practice Disk Calculation With Go</title>
+      <link>https://ryanfakir.github.io/practice-disk-calculation-with-go/</link>
       <pubDate>Wed, 28 Dec 2016 21:47:20 -0500</pubDate>
       
-      <guid>https://ryanfakir.github.io/practice-disk-calculation-with-golang/</guid>
+      <guid>https://ryanfakir.github.io/practice-disk-calculation-with-go/</guid>
       <description>
 
 &lt;h4 id=&#34;task-create-disk-calculation-with-go&#34;&gt;Task: create disk calculation with go&lt;/h4&gt;
+
+&lt;p&gt;to cancel long-wait goroutine, &lt;a href=&#34;https://golang.org/pkg/context/&#34;&gt;context&lt;/a&gt; package provide really nice abstraction.&lt;br /&gt;
+Here is code using context to cancel loopDir, so in client side, we don&amp;rsquo;t need worry about goroutine leak.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;var tokens = make(chan struct{}, 20)
+var done = make(chan struct{})
+
+const (
+	interval = 500
+	timeout  = 1300
+)
+
+func main() {
+	flag.Parse()
+	start := time.Now()
+	foldername := flag.Args()
+	// create ctx with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Millisecond)
+	defer func() {
+		cancel()
+	}()
+	defer func() {
+		fmt.Printf(&amp;quot;defer on  = %+v\n&amp;quot;, &amp;quot;main&amp;quot;)
+	}()
+	out := make(chan int64)
+	wg := &amp;amp;sync.WaitGroup{}
+	tick := time.Tick(interval * time.Millisecond)
+	wg.Add(1)
+	go func() {
+		for _, name := range foldername {
+			go loopDir(ctx, name, out, wg)
+		}
+	}()
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	go func() {
+		os.Stdin.Read(make([]byte, 1))
+		close(done)
+	}()
+
+	var fileNumber, nByte int64
+	for {
+		select {
+		case &amp;lt;-done:
+			// when user hit key, exit the program
+			for range out {
+			}
+			return
+		case size, ok := &amp;lt;-out:
+			if !ok {
+				fmt.Printf(&amp;quot;time.Since(start) = %+v\n&amp;quot;, time.Since(start))
+				panic(&amp;quot;show me&amp;quot;)
+				print(fileNumber, nByte)
+				return
+			}
+			fileNumber++
+			nByte += size
+		case &amp;lt;-tick:
+			print(fileNumber, nByte)
+		}
+	}
+}
+
+func print(fileNumber, nByte int64) {
+	fmt.Printf(&amp;quot;count %d files, total size: %.1f KB\n&amp;quot;, fileNumber, float64(nByte)/1e3)
+}
+
+func loopDir(ctx context.Context, foldername string, out chan&amp;lt;- int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	select {
+	case &amp;lt;-ctx.Done():
+	    //ctx will cancel after timeout
+		return
+	default:
+		for _, v := range spanDir(foldername) {
+			if v.IsDir() {
+				subDir := filepath.Join(foldername, v.Name())
+				tokens &amp;lt;- struct{}{}
+				wg.Add(1)
+				go loopDir(ctx, subDir, out, wg)
+				&amp;lt;-tokens
+			} else {
+				out &amp;lt;- v.Size()
+			}
+		}
+	}
+}
+
+func spanDir(foldername string) []os.FileInfo {
+	subFolder, err := ioutil.ReadDir(foldername)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, &amp;quot;Reading folder with error: %v\n&amp;quot;, err)
+		return nil
+	}
+	return subFolder
+}
+
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-Golang&#34;&gt;var tokens = make(chan struct{}, 20)
 var done = make(chan struct{})
@@ -118,11 +279,11 @@ func spanDir(foldername string) []os.FileInfo {
     </item>
     
     <item>
-      <title>Practice Web Crawler With Golang</title>
-      <link>https://ryanfakir.github.io/practice-web-crawler-with-golang/</link>
+      <title>Practice Web Crawler With Go</title>
+      <link>https://ryanfakir.github.io/practice-web-crawler-with-go/</link>
       <pubDate>Sat, 24 Dec 2016 18:37:06 -0500</pubDate>
       
-      <guid>https://ryanfakir.github.io/practice-web-crawler-with-golang/</guid>
+      <guid>https://ryanfakir.github.io/practice-web-crawler-with-go/</guid>
       <description>
 
 &lt;h4 id=&#34;task-web-crawler-with-go&#34;&gt;Task: web crawler with go&lt;/h4&gt;

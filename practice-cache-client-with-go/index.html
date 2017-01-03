@@ -14,10 +14,10 @@
 <title>
 
 
-     Blog 
+     Practice Cache Client With Go 
 
 </title>
-<link rel="canonical" href="https://ryanfakir.github.io/blog/">
+<link rel="canonical" href="https://ryanfakir.github.io/practice-cache-client-with-go/">
 
 
 <script type="text/javascript">
@@ -48,8 +48,6 @@
 >
 
 
-
-  <link href="https://ryanfakir.github.io/blog/index.xml" rel="alternate" type="application/rss+xml" title="Peng Yan" />
 
 
 
@@ -105,40 +103,89 @@
     </div>
 </section>
 
-<section class="main">
+
+<section class="main post non-narrow zero-top-spacing">
     <div class="container">
         <div class="content">
-            <div class="page-heading">Blog</div>
-            <ul>
-                
-                <li class="post-item">
-    <span class="meta">Jan 2, 2017</span>
-    <a href="https://ryanfakir.github.io/practice-cache-client-with-go/"><span>Practice Cache Client With Go</span></a>
-</li>
+            <div class="front-matter">
+                <div class="title-container">
+                    <div class="page-heading">
 
-                
-                <li class="post-item">
-    <span class="meta">Dec 28, 2016</span>
-    <a href="https://ryanfakir.github.io/practice-disk-calculation-with-go/"><span>Practice Disk Calculation With Go</span></a>
-</li>
+    Practice Cache Client With Go
 
-                
-                <li class="post-item">
-    <span class="meta">Dec 24, 2016</span>
-    <a href="https://ryanfakir.github.io/practice-web-crawler-with-go/"><span>Practice Web Crawler With Go</span></a>
-</li>
+</div>
 
+                    <div class="initials"><a href="https://ryanfakir.github.io/">ad</a></div>
+                </div>
+                <div class="meta">
+                    <div class="date" title="Mon Jan 2 2017 20:37:42 EST">Jan 2, 2017</div>
+                    <div class="reading-time"><div class="middot"></div>1 minute read</div>
+                </div>
+            </div>
+            <div class="markdown">
                 
-                <li class="post-item">
-    <span class="meta">Dec 18, 2016</span>
-    <a href="https://ryanfakir.github.io/angular-checkbox/"><span>Angular Checkbox</span></a>
-</li>
 
+<h4 id="task-cache-client-with-go">Task: cache client with go</h4>
+
+<p>Since go is design for easy compose concurrency-safe code. There are some ways to adopt it.<br />
+To make client concurrency-safe, need to use lock without harming too much efficiency.<br />
+By using Context, we allow client call able to timeout safe without leaking goroutine.</p>
+
+<pre><code class="language-golang">func (c *Client) Call(ctx context.Context, key string) (value interface{}, err error) {
+	c.Lock()
+	e := c.cache[key]
+	if e == nil {
+		e = &amp;CStruct{key, make(chan struct{}), nil}
+		c.cache[key] = e
+		c.Unlock()
+		e.result = c.flist(key)
+		close(e.ready)
+	} else {
+		c.Unlock()
+	}
+	select {
+	case &lt;-ctx.Done():
+		return nil, ctx.Err()
+	case &lt;-e.ready:
+		return e.result, nil
+	}
+}
+
+type CStruct struct {
+	key    string
+	ready  chan struct{}
+	result interface{}
+}
+
+type Client struct {
+	cache map[string]*CStruct
+	sync.Mutex
+	flist func(key string) interface{}
+}
+
+type Config struct {
+	Function func(key string) interface{}
+}
+
+func New(config ...Config) (*Client, error) {
+	// option config
+	c := &amp;Client{cache: make(map[string]*CStruct)}
+	c.flist = config[0].Function
+	return c, nil
+}
+</code></pre>
+
+                <br>
+                <p><a href="https://ryanfakir.github.io/blog/">Back to posts</a></p>
+            </div>
+            <br>
+            <div class="disqus">
                 
-            </ul>
+            </div>
         </div>
     </div>
 </section>
+
 
 
 <script type="text/javascript">
@@ -167,5 +214,4 @@ try {
 
 </body>
 </html>
-
 
