@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<meta name="HandheldFriendly" content="True">
+<meta name="MobileOptimized" content="320">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="I am nobody, but with curiosity">
+
+<base href="https://ryanfakir.github.io/">
+<title>
+
+
+     Practice Go: Web Crawler 
+
+</title>
+<link rel="canonical" href="https://ryanfakir.github.io/practice-go-web-crawler/">
+
+
+<script type="text/javascript">
+    var baseURL = 'https:\/\/ryanfakir.github.io\/';
+    var host = baseURL.substring(0, baseURL.length - 1).replace(/\//g, '');
+    if ((host === window.location.host) && (window.location.protocol !== 'https:')) {
+        window.location.protocol = 'https:';
+    }
+</script>
+
+
+
+
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.8.0/styles/default.min.css">
+
+
+<link rel="stylesheet" href="https://ryanfakir.github.io/css/reset.css">
+<link rel="stylesheet" href="https://ryanfakir.github.io/css/pygments.css">
+<link rel="stylesheet" href="https://ryanfakir.github.io/css/main.css">
+
+
+
+
+<link rel="shortcut icon"
+
+    href="https://ryanfakir.github.io/img/leaf.ico"
+
+>
+
+
+
+
+
+
+</head>
+
+
+<body lang="en">
+
+<section class="header"> 
+    <div class="container">
+        <div class="content">
+            
+            <a href="https://ryanfakir.github.io/"><div class="name">Peng Yan</div></a>
+        </div>
+    </div>
+</section>
+
+<section class="icons">
+    <div class="container">
+        <div class="content">
+
+        
+            <a href="//github.com/ryanfakir" target="_blank">
+                <i class="icon ion-social-github"></i>
+            </a>
+        
+        
+        
+
+        
+            <a href="//linkedin.com/in/ryanfakir" target="_blank">
+                <i class="icon ion-social-linkedin"></i>
+            </a>
+        
+
+        
+
+        
+
+        
+            <a href="mailto:pengyan@buffalo.edu">
+                <i class="icon ion-ios-email larger"></i>
+            </a>
+        
+
+        
+            <a href="https://ryanfakir.github.io/index.xml">
+                <i class="icon ion-social-rss larger"></i>
+            </a>
+        
+        </div>
+    </div>
+</section>
+
+
+<section class="main post non-narrow zero-top-spacing">
+    <div class="container">
+        <div class="content">
+            <div class="front-matter">
+                <div class="title-container">
+                    <div class="page-heading">
+
+    Practice Go: Web Crawler
+
+</div>
+
+                    <div class="initials"><a href="https://ryanfakir.github.io/">ad</a></div>
+                </div>
+                <div class="meta">
+                    <div class="date" title="Sat Dec 24 2016 18:37:06 EST">Dec 24, 2016</div>
+                    <div class="reading-time"><div class="middot"></div>4 minutes read</div>
+                </div>
+            </div>
+            <div class="markdown">
+                
+
+<h4 id="task-web-crawler-with-go">Task: web crawler with go</h4>
+
+<p><a href="https://forum.golangbridge.org/t/question-about-goroutine/4168/6">Here</a> is link I try to ask for help from community, Luckily Golang community have tons of terrific people to help.</p>
+
+<p>As we can see, to make goroutine is safely quit is tricky, and final version is still error-prone.<br />
+In next section, will take look at <a href="https://golang.org/pkg/context/">context</a> to writing easy code w/o much thinking.</p>
+
+<h3 id="main-go-final-version-with-less-goroutine-generated-less-time-consume">main.go: Final version: with less goroutine generated, less time consume</h3>
+
+<pre><code class="language-Golang">func main() {
+	start := time.Now()
+	c := utility.New()
+	c.ParsingPath = &quot;https://ryanfakir.github.io&quot;
+	linkList := make(chan Links)
+	out := make(chan Links)
+	depth := 3
+	wg := &amp;sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		linkList &lt;- Links{1, c.ParsingPath}
+	}()
+	for i := 0; i &lt; 2; i++ {
+		go func() {
+			for v := range linkList {
+				fmt.Printf(&quot; runtime.NumGoroutine()= %+v\n&quot;, runtime.NumGoroutine())
+				if v.Level &gt;= depth {
+					// resolve work 
+					wg.Done()
+					continue
+				}
+				res := c.Parser(v.Link)
+				go func(v Links, res []string) {
+					// resolve work for previous-round link
+					defer wg.Done()
+					for _, item := range res {
+						out &lt;- Links{v.Level + 1, item}
+					}
+				}(v, res)
+			}
+		}()
+	}
+
+	go func() {
+		// wait all work done and quit job
+		wg.Wait()
+		close(linkList)
+		close(out)
+	}()
+	m := make(map[string]bool)
+	for link := range out {
+		if !m[link.Link] &amp;&amp; link.Level &lt;= depth {
+			fmt.Printf(&quot;time.Since(start) = %+v\n&quot;, time.Since(start))
+			// How many link been processed
+			// Next-around links need to be registered in wg
+			wg.Add(1)
+			m[link.Link] = true
+			linkList &lt;- link
+		}
+	}
+	fmt.Println(&quot;done&quot;)
+}
+</code></pre>
+
+<h3 id="second-way-to-go-unluckily-not-figure-out-right-way-to-quit">Second way to go unluckily not figure out right way to quit</h3>
+
+<pre><code class="language-Golang">func main() {
+	start := time.Now()
+	c := utility.New()
+	c.ParsingPath = &quot;https://ryanfakir.github.io&quot;
+	linkList := make(chan Links)
+	out := make(chan Links)
+	depth := 3
+	go func() {
+		// start first link
+		linkList &lt;- Links{1, c.ParsingPath}
+		tokens &lt;- struct{}{}
+	}()
+	var res []Links
+	for i := 0; i &lt; 2; i++ {
+		go func() {
+			for v := range linkList {
+				fmt.Printf(&quot; runtime.NumGoroutine()= %+v\n&quot;, runtime.NumGoroutine())
+				if v.Level &gt;= depth {
+					continue
+				}
+				select {
+				case &lt;-tokens:
+					// append untouch urls from res
+					var items []Links
+					for _, unTouchedLinks := range res {
+						for _, url := range c.Parser(unTouchedLinks.Link) {
+							items = append(items, Links{unTouchedLinks.Level + 1, url})
+						}
+					}
+					for _, url := range c.Parser(v.Link) {
+						items = append(items, Links{v.Level + 1, url})
+					}
+					res = append(res, items...)
+					// go func(v Links, res []string) {
+					for _, item := range res {
+						out &lt;- item
+					}
+				default:
+					res = append(res, v)
+				}
+				//}(v, res)
+			}
+		}()
+	}
+
+	m := make(map[string]bool)
+	var i int
+	for link := range out {
+		if !m[link.Link] &amp;&amp; link.Level &lt;= depth {
+			i++
+			fmt.Printf(&quot;time.Since(start) = %+v\n&quot;, time.Since(start))
+			fmt.Printf(&quot;i = %+v\n&quot;, i)
+			m[link.Link] = true
+			go func() {
+				tokens &lt;- struct{}{}
+				linkList &lt;- link
+			}()
+
+		}
+	}
+}
+</code></pre>
+
+<h3 id="utility-go">utility.go</h3>
+
+<pre><code class="language-Golang">var fvalue = DepthFlag{3}
+
+type Client struct {
+	Url         *url.URL
+	Fvalue      *DepthFlag
+	ParsingPath string
+}
+
+func New() *Client {
+	return &amp;Client{}
+}
+func (c *Client) Parser(url string) []string {
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Errorf(&quot;http get %s with error %v&quot;, url, err)
+		return nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Errorf(&quot;http get status not OK: %s with %v&quot;, url, err)
+		return nil
+	}
+	defer resp.Body.Close()
+	doc, err := html.Parse(resp.Body)
+	if err != nil {
+		fmt.Errorf(&quot;parse problem %s with error %v&quot;, url, err)
+		return nil
+	}
+	c.Url = resp.Request.URL
+	pre := c.findLink
+	res := removeDuplicate(forEachNode(doc, pre, nil), url)
+	return res
+}
+
+func removeDuplicate(elements []string, url string) (res []string) {
+	m := make(map[string]bool)
+	for _, v := range elements {
+		v = strings.TrimSuffix(v, &quot;/&quot;)
+		m[v] = true
+	}
+	for k, _ := range m {
+		if url != k {
+			res = append(res, k)
+		}
+	}
+	return
+}
+
+type DepthFlag struct {
+	Value int
+}
+
+func (d *DepthFlag) String() string {
+	return strconv.Itoa(d.Value)
+}
+func (d *DepthFlag) Set(s string) error {
+	var value int
+	_, err := fmt.Sscanf(s, &quot;%d&quot;, &amp;value)
+	if err != nil {
+		fmt.Errorf(&quot;problem with flag %s&quot;, s)
+		return err
+	}
+	d.Value = value
+	return nil
+}
+func init() {
+	flag.Var(&amp;fvalue, &quot;depth&quot;, &quot;Depth Parameter&quot;)
+}
+
+func (c *Client) findLink(n *html.Node) (res []string) {
+	if n.Type == html.ElementNode &amp;&amp; n.Data == &quot;a&quot; {
+		for _, v := range n.Attr {
+			if v.Key != &quot;href&quot; {
+				continue
+			}
+			temp, err := c.Url.Parse(v.Val)
+			if err != nil {
+				continue
+			}
+			res = append(res, temp.String())
+		}
+	}
+	return
+}
+func forEachNode(n *html.Node, pre, post func(n *html.Node) []string) (res []string) {
+	if pre != nil {
+		res = append(res, pre(n)...)
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		res = append(res, forEachNode(c, pre, post)...)
+	}
+	if post != nil {
+		res = append(res, post(n)...)
+	}
+	return
+}
+</code></pre>
+
+                <br>
+                <p><a href="https://ryanfakir.github.io/blog/">Back to posts</a></p>
+            </div>
+            <br>
+            <div class="disqus">
+                
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+    var pageTracker = _gat._getTracker("XYZ");
+    pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+
+
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.8.0/highlight.min.js"></script>
+  
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.8.0/languages/go.min.js"></script>
+  
+
+  <script type="text/javascript">
+    hljs.initHighlightingOnLoad();
+  </script>
+
+
+
+</body>
+</html>
+

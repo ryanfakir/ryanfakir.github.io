@@ -6,15 +6,100 @@
     <description>Recent content on Peng Yan</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-US</language>
-    <lastBuildDate>Mon, 02 Jan 2017 20:37:42 -0500</lastBuildDate>
+    <lastBuildDate>Tue, 03 Jan 2017 23:06:23 -0500</lastBuildDate>
     <atom:link href="https://ryanfakir.github.io/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
-      <title>Practice Cache Client With Go</title>
-      <link>https://ryanfakir.github.io/practice-cache-client-with-go/</link>
+      <title>Practice Go: Testing</title>
+      <link>https://ryanfakir.github.io/practice-go-testing/</link>
+      <pubDate>Tue, 03 Jan 2017 23:06:23 -0500</pubDate>
+      
+      <guid>https://ryanfakir.github.io/practice-go-testing/</guid>
+      <description>
+
+&lt;h4 id=&#34;task-create-basic-test-case-and-benchmark-test-with-go&#34;&gt;Task: create basic test case and benchmark test with go&lt;/h4&gt;
+
+&lt;p&gt;bitcount_test.go&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-golang&#34;&gt;func TestLookup(t *testing.T) {
+	var tests = []struct {
+		testInt uint64
+		result  int
+	}{
+		{1213164123131294294, 30},
+		{65, 2},
+		{16, 1},
+		{11, 3},
+	}
+	for _, testcase := range tests {
+		if ok := LookupImprove(testcase.testInt); ok != testcase.result {
+			t.Errorf(&amp;quot;Return wrong result (%b), expect %d but got %d&amp;quot;, testcase.testInt, testcase.result, ok)
+		}
+	}
+}
+
+var test uint64
+
+func BenchmarkLookup(b *testing.B) {
+	for i := 0; i &amp;lt; b.N; i++ {
+		Lookup(test)
+	}
+}
+
+func BenchmarkLookupImprove(b *testing.B) {
+	for i := 0; i &amp;lt; b.N; i++ {
+		LookupImprove(test)
+	}
+}
+
+func BenchmarkAll(b *testing.B) {
+	seed := time.Now().UTC().UnixNano()
+	random := rand.New(rand.NewSource(seed))
+	test = uint64(random.Int63())
+	b.Run(&amp;quot;lookup&amp;quot;, BenchmarkLookup)
+	b.Run(&amp;quot;lookupImprove&amp;quot;, BenchmarkLookupImprove)
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;bitcount.go&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-golang&#34;&gt;var table [256]byte
+
+func init() {
+	for i := range table {
+		table[i] = table[i/2] + byte(i&amp;amp;1)
+	}
+}
+
+func Lookup(v uint64) (sum int) {
+	for i := 0; i &amp;lt; 8; i++ {
+		sum += int(table[byte(v&amp;gt;&amp;gt;uint(i*8))])
+	}
+	return
+}
+
+func LookupImprove(v uint64) (sum int) {
+	if v == 0 {
+		return sum
+	}
+	sum = 1
+	for v&amp;amp;(v-1) != 0 {
+		v = v &amp;amp; (v - 1)
+		sum++
+	}
+	return
+}
+&lt;/code&gt;&lt;/pre&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Practice Go: Cache Client</title>
+      <link>https://ryanfakir.github.io/practice-go-cache-client/</link>
       <pubDate>Mon, 02 Jan 2017 20:37:42 -0500</pubDate>
       
-      <guid>https://ryanfakir.github.io/practice-cache-client-with-go/</guid>
+      <guid>https://ryanfakir.github.io/practice-go-cache-client/</guid>
       <description>
 
 &lt;h4 id=&#34;task-cache-client-with-go&#34;&gt;Task: cache client with go&lt;/h4&gt;
@@ -70,11 +155,11 @@ func New(config ...Config) (*Client, error) {
     </item>
     
     <item>
-      <title>Practice Disk Calculation With Go</title>
-      <link>https://ryanfakir.github.io/practice-disk-calculation-with-go/</link>
+      <title>Practice Go: Disk Calculation</title>
+      <link>https://ryanfakir.github.io/practice-go-disk-calculation/</link>
       <pubDate>Wed, 28 Dec 2016 21:47:20 -0500</pubDate>
       
-      <guid>https://ryanfakir.github.io/practice-disk-calculation-with-go/</guid>
+      <guid>https://ryanfakir.github.io/practice-go-disk-calculation/</guid>
       <description>
 
 &lt;h4 id=&#34;task-create-disk-calculation-with-go&#34;&gt;Task: create disk calculation with go&lt;/h4&gt;
@@ -96,12 +181,7 @@ func main() {
 	foldername := flag.Args()
 	// create ctx with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Millisecond)
-	defer func() {
-		cancel()
-	}()
-	defer func() {
-		fmt.Printf(&amp;quot;defer on  = %+v\n&amp;quot;, &amp;quot;main&amp;quot;)
-	}()
+	defer cancel()
 	out := make(chan int64)
 	wg := &amp;amp;sync.WaitGroup{}
 	tick := time.Tick(interval * time.Millisecond)
@@ -272,18 +352,16 @@ func spanDir(foldername string) []os.FileInfo {
 	}
 	return subFolder
 }
-
-
 &lt;/code&gt;&lt;/pre&gt;
 </description>
     </item>
     
     <item>
-      <title>Practice Web Crawler With Go</title>
-      <link>https://ryanfakir.github.io/practice-web-crawler-with-go/</link>
+      <title>Practice Go: Web Crawler</title>
+      <link>https://ryanfakir.github.io/practice-go-web-crawler/</link>
       <pubDate>Sat, 24 Dec 2016 18:37:06 -0500</pubDate>
       
-      <guid>https://ryanfakir.github.io/practice-web-crawler-with-go/</guid>
+      <guid>https://ryanfakir.github.io/practice-go-web-crawler/</guid>
       <description>
 
 &lt;h4 id=&#34;task-web-crawler-with-go&#34;&gt;Task: web crawler with go&lt;/h4&gt;

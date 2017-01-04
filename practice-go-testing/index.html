@@ -14,10 +14,10 @@
 <title>
 
 
-     Blog 
+     Practice Go: Testing 
 
 </title>
-<link rel="canonical" href="https://ryanfakir.github.io/blog/">
+<link rel="canonical" href="https://ryanfakir.github.io/practice-go-testing/">
 
 
 <script type="text/javascript">
@@ -48,8 +48,6 @@
 >
 
 
-
-  <link href="https://ryanfakir.github.io/blog/index.xml" rel="alternate" type="application/rss+xml" title="Peng Yan" />
 
 
 
@@ -105,46 +103,114 @@
     </div>
 </section>
 
-<section class="main">
+
+<section class="main post non-narrow zero-top-spacing">
     <div class="container">
         <div class="content">
-            <div class="page-heading">Blog</div>
-            <ul>
-                
-                <li class="post-item">
-    <span class="meta">Jan 3, 2017</span>
-    <a href="https://ryanfakir.github.io/practice-go-testing/"><span>Practice Go: Testing</span></a>
-</li>
+            <div class="front-matter">
+                <div class="title-container">
+                    <div class="page-heading">
 
-                
-                <li class="post-item">
-    <span class="meta">Jan 2, 2017</span>
-    <a href="https://ryanfakir.github.io/practice-go-cache-client/"><span>Practice Go: Cache Client</span></a>
-</li>
+    Practice Go: Testing
 
-                
-                <li class="post-item">
-    <span class="meta">Dec 28, 2016</span>
-    <a href="https://ryanfakir.github.io/practice-go-disk-calculation/"><span>Practice Go: Disk Calculation</span></a>
-</li>
+</div>
 
+                    <div class="initials"><a href="https://ryanfakir.github.io/">ad</a></div>
+                </div>
+                <div class="meta">
+                    <div class="date" title="Tue Jan 3 2017 23:06:23 EST">Jan 3, 2017</div>
+                    <div class="reading-time"><div class="middot"></div>1 minute read</div>
+                </div>
+            </div>
+            <div class="markdown">
                 
-                <li class="post-item">
-    <span class="meta">Dec 24, 2016</span>
-    <a href="https://ryanfakir.github.io/practice-go-web-crawler/"><span>Practice Go: Web Crawler</span></a>
-</li>
 
-                
-                <li class="post-item">
-    <span class="meta">Dec 18, 2016</span>
-    <a href="https://ryanfakir.github.io/angular-checkbox/"><span>Angular Checkbox</span></a>
-</li>
+<h4 id="task-create-basic-test-case-and-benchmark-test-with-go">Task: create basic test case and benchmark test with go</h4>
 
+<p>bitcount_test.go</p>
+
+<pre><code class="language-golang">func TestLookup(t *testing.T) {
+	var tests = []struct {
+		testInt uint64
+		result  int
+	}{
+		{1213164123131294294, 30},
+		{65, 2},
+		{16, 1},
+		{11, 3},
+	}
+	for _, testcase := range tests {
+		if ok := LookupImprove(testcase.testInt); ok != testcase.result {
+			t.Errorf(&quot;Return wrong result (%b), expect %d but got %d&quot;, testcase.testInt, testcase.result, ok)
+		}
+	}
+}
+
+var test uint64
+
+func BenchmarkLookup(b *testing.B) {
+	for i := 0; i &lt; b.N; i++ {
+		Lookup(test)
+	}
+}
+
+func BenchmarkLookupImprove(b *testing.B) {
+	for i := 0; i &lt; b.N; i++ {
+		LookupImprove(test)
+	}
+}
+
+func BenchmarkAll(b *testing.B) {
+	seed := time.Now().UTC().UnixNano()
+	random := rand.New(rand.NewSource(seed))
+	test = uint64(random.Int63())
+	b.Run(&quot;lookup&quot;, BenchmarkLookup)
+	b.Run(&quot;lookupImprove&quot;, BenchmarkLookupImprove)
+}
+
+</code></pre>
+
+<p>bitcount.go</p>
+
+<pre><code class="language-golang">var table [256]byte
+
+func init() {
+	for i := range table {
+		table[i] = table[i/2] + byte(i&amp;1)
+	}
+}
+
+func Lookup(v uint64) (sum int) {
+	for i := 0; i &lt; 8; i++ {
+		sum += int(table[byte(v&gt;&gt;uint(i*8))])
+	}
+	return
+}
+
+func LookupImprove(v uint64) (sum int) {
+	if v == 0 {
+		return sum
+	}
+	sum = 1
+	for v&amp;(v-1) != 0 {
+		v = v &amp; (v - 1)
+		sum++
+	}
+	return
+}
+</code></pre>
+
+                <br>
+                <p><a href="https://ryanfakir.github.io/blog/">Back to posts</a></p>
+            </div>
+            <br>
+            <div class="disqus">
                 
-            </ul>
+            </div>
         </div>
     </div>
 </section>
+
 
 
 <script type="text/javascript">
@@ -173,5 +239,4 @@ try {
 
 </body>
 </html>
-
 
